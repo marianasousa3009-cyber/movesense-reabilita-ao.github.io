@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoveSense - Reabilitação Física</title>
+    <!-- Chart.js para os gráficos interativos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --sidebar-bg: #1e293b;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* 1. Top Bar (Cabeçalho Fixo) */
+        header {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            height: 70px;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            height: 100%;
+        }
+
+        .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .login-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Estrutura Principal da App */
+        .app-container {
+            display: flex;
+            margin-top: 70px;
+            flex: 1;
+        }
+
+        /* 3. Sidebar (Barra Lateral Esquerda) */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: fixed;
+            top: 70px;
+            bottom: 0;
+            left: 0;
+            z-index: 999;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray);
+            margin: 1rem 0.5rem 0.25rem 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-item.active {
+            border-left: 4px solid var(--primary);
+            background-color: rgba(37, 99, 235, 0.15);
+        }
+
+        .patient-list-small {
+            list-style: none;
+            margin-left: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .patient-item-link {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            padding: 0.4rem 0.75rem;
+            display: block;
+            border-radius: 0.25rem;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .patient-item-link:hover, .patient-item-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Área de Conteúdo da App */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* Componentes de View (Abas) */
+        .tab-view {
+            display: none;
+        }
+
+        .tab-view.active {
+            display: block;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* 4. Ficha de Paciente - Estrutura */
+        .patient-profile {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .patient-profile {
+                grid-template-columns: 1fr;
+            }
+            .sidebar { width: 70px; padding: 1rem 0.2rem; }
+            .sidebar .nav-item span:not(.icon), .sidebar-section-title, .patient-list-small { display: none; }
+            .main-content { margin-left: 70px; }
+        }
+
+        .bio-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            height: fit-content;
+        }
+
+        .avatar-area {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .avatar {
+            width: 90px;
+            height: 90px;
+            background-color: #dbeafe;
+            color: var(--primary);
+            font-size: 2.5rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .bio-field {
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 0.5rem;
+        }
+
+        .bio-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--gray);
+            font-weight: 600;
+        }
+
+        .bio-value {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--dark);
+            margin-top: 0.1rem;
+        }
+
+        .clinical-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .grid-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .chart-box {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .chart-box-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Exercícios Recomendados */
+        .exercises-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .exercise-card {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .ex-thumb {
+            height: 120px;
+            background-color: #e2e8f0;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .ex-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .ex-desc {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        /* 5. Módulo de Monitorização Discriminada */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .monitor-grid { grid-template-columns: 1fr; }
+        }
+
+        .monitor-main-panel {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .live-exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 1rem;
+        }
+
+        .live-status {
+            background-color: #fee2e2;
+            color: var(--danger);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .metric-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: var(--light);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            text-align: center;
+        }
+
+        .metric-num {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 0.25rem;
+        }
+
+        .metric-num.success { color: var(--secondary); }
+        .metric-num.warning { color: var(--warning); }
+
+        .monitor-visual-side {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .joint-animation-box {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            text-align: center;
+            height: 240px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .joint-graphic {
+            font-size: 4rem;
+            transition: transform 0.5s ease-in-out;
+            animation: flexJoint 3s infinite alternate ease-in-out;
+        }
+
+        @keyframes flexJoint {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-60deg); }
+        }
+
+        /* Agenda / Consultas */
+        .agenda-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .agenda-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .agenda-table th, .agenda-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .agenda-table th {
+            background-color: var(--light);
+            font-weight: 600;
+            color: var(--gray);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.confirmed { background-color: #d1fae5; color: #065f46; }
+        .status-badge.pending { background-color: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Top Bar -->
+    <header>
+        <div class="nav-container">
+            <!-- Logotipo Superior Esquerdo -->
+            <div class="logo">
+                <span>🏃‍♂️</span> MoveSense - Reabilitação Física
+            </div>
+            <!-- Botão de Autenticação Superior Direito -->
+            <a href="#login" class="login-btn" onclick="alert('Redirecionando para o Portal de Login (Paciente / Profissional)...')">Área do Utilizador</a>
+        </div>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- 3. Sidebar (Barra Lateral Esquerda) -->
+        <aside class="sidebar">
+            <div class="sidebar-section-title">Navegação Clínica</div>
+            
+            <div class="nav-item" onclick="switchTab('agenda', this)">
+                <span class="icon">📅</span>
+                <span>Marcação / Agenda</span>
+            </div>
+
+            <div class="nav-item active" onclick="switchTab('pacientes', this)">
+                <span class="icon">👥</span>
+                <span>Pacientes</span>
+            </div>
+            
+            <!-- Lista Subjacente de Pacientes -->
+            <ul class="patient-list-small">
+                <li><a class="patient-item-link active" onclick="selectPatient('Carlos Silva')">Carlos Silva (Joelho)</a></li>
+                <li><a class="patient-item-link" onclick="selectPatient('Ana Santos')">Ana Santos (Ombro)</a></li>
+                <li><a class="patient-item-link" onclick="selectPatient('Pedro Oliveira')">Pedro Oliveira (Tornozelo)</a></li>
+            </ul>
+
+            <div class="sidebar-section-title">Tempo Real</div>
+            
+            <div class="nav-item" onclick="switchTab('monitorizacao', this)">
+                <span class="icon">📟</span>
+                <span>Monitorização</span>
+            </div>
+        </aside>
+
+        <!-- Área Central Dinâmica -->
+        <main class="main-content">
+            
+            <!-- ABA 1: AGENDA -->
+            <div id="view-agenda" class="tab-view">
+                <h1 class="page-title">Agenda de Consultas</h1>
+                <div class="agenda-box">
+                    <p style="color: var(--gray); margin-bottom: 1.5rem;">Gestão de horários clínicos e sessões telemétricas agendadas.</p>
+                    <table class="agenda-table">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Paciente</th>
+                                <th>Articulação</th>
+                                <th>Tipo de Sessão</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Hoje, 14:30</td>
+                                <td>Carlos Silva</td>
+                                <td>Joelho Esquerdo</td>
+                                <td>Avaliação de ROM Remota</td>
+                                <td><span class="status-badge confirmed">Confirmada</span></td>
+                            </tr>
+                            <tr>
+                                <td>Hoje, 16:00</td>
+                                <td>Ana Santos</td>
+                                <td>Ombro Direito</td>
+                                <td>Acompanhamento Presencial</td>
+                                <td><span class="status-badge confirmed">Confirmada</span></td>
+                            </tr>
+                            <tr>
+                                <td>Amanhã, 09:15</td>
+                                <td>Pedro Oliveira</td>
+                                <td>Tornozelo Esquerdo</td>
+                                <td>Sessão Inicial Inercial</td>
+                                <td><span class="status-badge pending">Pendente</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 2: FICHA DO PACIENTE (Padrão Ativa) -->
+            <div id="view-pacientes" class="tab-view active">
+                <h1 class="page-title">Ficha Clínica do Paciente</h1>
+                
+                <div class="patient-profile">
+                    <!-- 4. Biografia do Paciente -->
+                    <aside class="bio-card">
+                        <div class="avatar-area">
+                            <div class="avatar">👨‍🦽</div>
+                            <h2 id="patient-name-title" style="font-size: 1.25rem;">Carlos Silva</h2>
+                            <p style="font-size: 0.85rem; color: var(--gray);">ID Clínico: #98421</p>
+                        </div>
+                        
+                        <div class="bio-field">
+                            <div class="bio-label">Idade</div>
+                            <div class="bio-value">43 anos</div>
+                        </div>
+                        <div class="bio-field">
+                            <div class="bio-label">Profissão</div>
+                            <div class="bio-value">Engenheiro Civil</div>
+                        </div>
+                        <div class="bio-field">
+                            <div class="bio-label">Diagnóstico Principal</div>
+                            <div class="bio-value">Pós-operatório de Reconstrução do LCA (Joelho)</div>
+                        </div>
+                        <div class="bio-field">
+                            <div class="bio-label">Outras Condições de Saúde</div>
+                            <div class="bio-value">Hipertensão ligeira controlada</div>
+                        </div>
+                        <div class="bio-field">
+                            <div class="bio-label">Medicação Atual</div>
+                            <div class="bio-value">Analgésicos em S.O.S (Paracetamol 1g)</div>
+                        </div>
+                        <div class="bio-field">
+                            <div class="bio-label">Intervenções Cirúrgicas</div>
+                            <div class="bio-value">Artroscopia do Joelho Esquerdo (há 4 semanas)</div>
+                        </div>
+                    </aside>
+
+                    <!-- Painel Clínico de Gráficos e Exercícios -->
+                    <div class="clinical-dashboard">
+                        <!-- Gráficos Históricos Gerais -->
+                        <div class="grid-charts">
+                            <div class="chart-box">
+                                <div class="chart-box-title">Evolução do Nível de Dor (Histórico)</div>
+                                <div style="height: 180px; position: relative;">
+                                    <canvas id="histDorChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-box-title">Amplitude Máxima de Flexão (ROM)</div>
+                                <div style="height: 180px; position: relative;">
+                                    <canvas id="histRomChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-box-title">Média de Repetições Concluídas</div>
+                                <div style="height: 180px; position: relative;">
+                                    <canvas id="histRepChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prescrição de Exemplos de Exercícios -->
+                        <div class="exercises-section">
+                            <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Plano de Exercícios Prescrito</h2>
+                            <p style="color: var(--gray); font-size: 0.9rem;">Exemplos práticos com metas configuradas na aplicação do paciente:</p>
+                            
+                            <div class="exercise-grid">
+                                <div class="exercise-card">
+                                    <div class="ex-thumb">🦵</div>
+                                    <div class="ex-title">Flexão Ativa Suspendida</div>
+                                    <div class="ex-desc">Deslizar o calcanhar em direção às nádegas mantendo o alinhamento pélvico.</div>
+                                    <div style="font-size: 0.8rem; font-weight: bold; color: var(--primary); margin-top: auto;">Meta: 3x12 Reps | ROM: 110º</div>
+                                </div>
+                                <div class="exercise-card">
+                                    <div class="ex-thumb">🧘</div>
+                                    <div class="ex-title">Extensão Isométrica de Quadricípedes</div>
+                                    <div class="ex-desc">Pressionar a zona posterior do joelho contra uma toalha enrolada, contraindo a coxa.</div>
+                                    <div style="font-size: 0.8rem; font-weight: bold; color: var(--primary); margin-top: auto;">Meta: 3x10 (Manter 5s)</div>
+                                </div>
+                                <div class="exercise-card">
+                                    <div class="ex-thumb">🤸</div>
+                                    <div class="ex-title">Elevação da Perna Estendida (SLR)</div>
+                                    <div class="ex-desc">Elevar a perna reta a cerca de 30cm da maca mantendo o abdómen contraído.</div>
+                                    <div style="font-size: 0.8rem; font-weight: bold; color: var(--primary); margin-top: auto;">Meta: 3x10 Reps</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 3: MONITORIZAÇÃO EM TEMPO REAL DISCRIMINADA -->
+            <div id="view-monitorizacao" class="tab-view">
+                <h1 class="page-title">Monitorização Biomecânica em Direto</h1>
+                
+                <div class="monitor-grid">
+                    <!-- Painel Discriminado Principal -->
+                    <div class="monitor-main-panel">
+                        <div class="live-exercise-header">
+                            <div>
+                                <h2 style="font-size: 1.25rem;" id="live-pt-name">Sessão Ativa: Carlos Silva</h2>
+                                <p style="font-size: 0.85rem; color: var(--gray);">Exercício em execução: Flexão Ativa do Joelho</p>
+                            </div>
+                            <div class="live-status">
+                                <span style="display:inline-block; width:8px; height:8px; background-color:var(--danger); border-radius:50%;"></span>
+                                SENSOR ONLINE
+                            </div>
+                        </div>
+
+                        <!-- Métricas Discriminadas do Exercício -->
+                        <div class="metric-cards-grid">
+                            <div class="metric-card">
+                                <div class="bio-label">Amplitude Atual (ROM)</div>
+                                <div class="metric-num animate-val" id="live-rom">102º</div>
+                                <div style="font-size:0.75rem; color: var(--gray); margin-top:0.25rem;">Meta Clínica: 110º</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="bio-label">Contador de Repetições</div>
+                                <div class="metric-num success" id="live-rep">8 / 12</div>
+                                <div style="font-size:0.75rem; color: var(--gray); margin-top:0.25rem;">Série 2 de 3</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="bio-label">Duração Acumulada</div>
+                                <div class="metric-num warning" id="live-duration">01:42s</div>
+                                <div style="font-size:0.75rem; color: var(--gray); margin-top:0.25rem;">Tempo de repouso incluído</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="bio-label">Regularidade / Fluidez</div>
+                                <div class="metric-num success" id="live-fluid">Excelente</div>
+                                <div style="font-size:0.75rem; color: var(--gray); margin-top:0.25rem;">Sem paragens/hesitações</div>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico de Dor Contínuo ao Longo da Execução -->
+                        <div class="chart-box" style="margin-top: 0.5rem;">
+                            <div class="chart-box-title">Nível de Dor Durante a Execução (Série Atual)</div>
+                            <div style="height: 180px; position: relative;">
+                                <canvas id="liveDorChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lado Visual e Simulação Física -->
+                    <div class="monitor-visual-side">
+                        <div class="joint-animation-box">
+                            <div class="bio-label">Simulador Angular Digital</div>
+                            <div class="joint-graphic" id="joint-icon">🦵</div>
+                            <p style="font-size: 0.85rem; color: var(--gray);">Ângulo articular instantâneo em atualização</p>
+                        </div>
+                        
+                        <div class="bio-card">
+                            <h3 style="font-size:1rem; margin-bottom:0.75rem;">Notas de Observação Remota</h3>
+                            <p style="font-size:0.85rem; color: var(--gray); line-height:1.4;">
+                                O paciente mostra excelente controlo excêntrico entre a 4ª e a 7ª repetição. Um ligeiro pico de dor (nível 4) foi registado aos 95º de flexão, estabilizando de seguida.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Script de Gestão das Abas e Gráficos Chart.js -->
+    <script>
+        // Função para Alternar entre as Vistas (Abas)
+        function switchTab(tabId, element) {
+            // Esconder todas as abas
+            document.querySelectorAll('.tab-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            // Desativar links da barra lateral
+            document.querySelectorAll('.sidebar .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Ativar a aba correspondente
+            document.getElementById('view-' + tabId).classList.add('active');
+            if(element) element.classList.add('active');
+        }
+
+        // Função de seleção de paciente na lista lateral
+        function selectPatient(name) {
+            document.querySelectorAll('.patient-item-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.getElementById('patient-name-title').innerText = name;
+            document.getElementById('live-pt-name').innerText = "Sessão Ativa: " + name;
+            alert('A carregar dados históricos e métricas de telemetria para: ' + name);
+        }
+
+        // --- Inicialização dos Gráficos Chart.js ---
+        const consultasLabels = ['Cons. 1', 'Cons. 2', 'Cons. 3', 'Cons. 4', 'Cons. 5', 'Cons. 6'];
+
+        // 1. Gráfico Histórico de Dor
+        new Chart(document.getElementById('histDorChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: consultasLabels,
+                datasets: [{
+                    label: 'Escala de Dor (0-10)',
+                    data: [7, 6, 5, 3, 4, 2],
+                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 10 } } }
+        });
+
+        // 2. Gráfico Histórico de Amplitude
+        new Chart(document.getElementById('histRomChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: consultasLabels,
+                datasets: [{
+                    label: 'Graus de Flexão (º)',
+                    data: [75, 80, 92, 95, 100, 102],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                    borderWidth: 2,
+                    tension: 0.2,
+                    fill: true
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 60, max: 120 } } }
+        });
+
+        // 3. Gráfico Histórico de Repetições
+        new Chart(document.getElementById('histRepChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: consultasLabels,
+                datasets: [{
+                    label: 'Repetições Médias',
+                    data: [8, 8, 10, 12, 12, 12],
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 15 } } }
+        });
+
+        // 4. Gráfico Discriminado de Dor em Tempo Real (Por repetição da série atual)
+        new Chart(document.getElementById('liveDorChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Rep 1', 'Rep 2', 'Rep 3', 'Rep 4', 'Rep 5', 'Rep 6', 'Rep 7', 'Rep 8'],
+                datasets: [{
+                    label: 'Dor na Repetição',
+                    data: [1, 2, 2, 3, 2, 4, 3, 2],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { y: { beginAtZero: true, max: 10, title: { display: true, text: 'Intensidade EVA' } } } 
+            }
+        });
+
+        // Simulação básica de atualização dinâmica de valores do sensor
+        setInterval(() => {
+            if (document.getElementById('view-monitorizacao').classList.contains('active')) {
+                // Alternar ligeiramente a amplitude simulada
+                const baseRom = 100 + Math.floor(Math.random() * 5);
+                document.getElementById('live-rom').innerText = baseRom + 'º';
+            }
+        }, 2500);
+    </script>
+</body>
+</html>
